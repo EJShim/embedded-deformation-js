@@ -1,7 +1,12 @@
 <script>
 import { onMount } from "svelte";
 import vtkGenericRenderWindow from '@kitware/vtk.js/Rendering/Misc/GenericRenderWindow';
+import vtkPointPicker from '@kitware/vtk.js/Rendering/Core/PointPicker';
 import { readOBJ, makeActor } from './utils';
+import vtkPolyData from "@kitware/vtk.js/Common/DataModel/PolyData";
+import vtkSphereMapper from '@kitware/vtk.js/Rendering/Core/SphereMapper';
+import vtkActor from "@kitware/vtk.js/Rendering/Core/Actor";
+
 
 let m_rendererContainer;
 let m_iren = vtkGenericRenderWindow.newInstance({background:[1,0,0,0]});
@@ -17,6 +22,9 @@ let m_actor;
 let m_controlPointPolyData;
 let m_controlPointActor;
 
+let m_picker;
+
+let m_bSimulation = false;
 
 onMount(async ()=>{	
 	m_background1 = [100, 100, 100];
@@ -28,27 +36,105 @@ onMount(async ()=>{
 	const renderer = m_iren.getRenderer();
 	const renWin = m_iren.getRenderWindow();
 
-	const polydata = await readOBJ('resources/decimated-knight.obj');
-	const actor = makeActor(polydata);
+	// Add Rendering Object
+	m_polydata = await readOBJ('resources/decimated-knight.obj');
+	m_actor = makeActor(m_polydata);
+	m_actor.getProperty().setColor(1, 1, 0);	
+	renderer.addActor(m_actor);
 
-	renderer.addActor(actor);
+	console.log(m_polydata.getVerts().getNumberOfTuples());
+	// Add Contorl Points rendering objetc	
+	m_controlPointPolyData = vtkPolyData.newInstance();		
+	
+
+	const mapper = vtkSphereMapper.newInstance();
+	mapper.setInputData(m_controlPointPolyData);	
+	mapper.setRadius(0.01);
+	m_controlPointActor = vtkActor.newInstance();
+	m_controlPointActor.setMapper(mapper);
+	m_controlPointActor.getProperty().setColor(1, 0, 0);	
+	renderer.addActor(m_controlPointActor);	
+	
+	
+	renderer.resetCamera();	
 
 
-	// Add Contorl Points
-	const random_points = Float32Array.from({length: 100}, () => Math.random());
-	console.log(random_points);
+	// const numPts = 3;
+	// let random_points = Float32Array.from({length: 3*numPts}, () => Math.random());	
+	// const append_val = [Math.random(), 	Math.random(), Math.random()];
+	// console.log(append_val);
+	// random_points = new Float32Array([...random_points,...append_val]);
 
+	// console.log(random_points);
+	
+	// m_controlPointPolyData.getPoints().setData(random_points, 3);
+	update();
+	
+	renderer.resetCamera();		
+	renWin.render();		
 
-	renderer.resetCamera();
-	renWin.render();
 
 	// TODO :  resassign interaction?
-	m_iren.getInteractor().onLeftButtonPress((e)=>{
-		// console.log(e.position);
-		m_iren.getInteractor().disable();
-		m_iren.getInteractor().enable();
-	})
-})
+	m_iren.getInteractor().onLeftButtonPress((e)=>{		
+		// m_iren.getInteractor().disable();
+		// m_iren.getInteractor().enable();
+		
+		m_picker.pick([e.position.x, e.position.y, e.position.z], renderer);	
+		const pointId = m_picker.getPointId();
+
+		if(m_bSimulation){
+			// Move Control Points
+			// console.log(m_controlPointPolyData.getVerts())
+			console.log(pointId, m_picker.getActors());
+
+
+		}else{ // Add New Control Points				
+			if(m_picker.getActors().length === 0) return;	
+			const pickedPoint = m_polydata.getPoints().getPoint(pointId);
+			console.log(pointId, pickedPoint);
+			
+			// this way.. makes picker work
+			let points_buffer = m_controlPointPolyData.getPoints().getData();
+			points_buffer = new Float32Array([...points_buffer, ...pickedPoint]);
+			
+			m_controlPointPolyData.getPoints().setData(points_buffer, 3);			
+			// m_controlPointPolyData.getPoints().modified();
+
+			m_controlPointPolyData.modified();
+		}
+		
+
+		
+		renWin.render();
+
+		
+
+	});
+
+	m_iren.getInteractor().onKeyDown(e=>{
+
+		if(e.key !== " ") return;
+		m_bSimulation = !m_bSimulation;
+
+
+		update();
+	});
+});
+
+const update = () =>{
+	
+	m_picker = vtkPointPicker.newInstance();	
+	m_picker.setPickFromList(true);
+	m_picker.initializePickList();	
+	
+	if(m_bSimulation){			
+		m_picker.addPickList(m_controlPointActor);
+		m_background1 = [100, 100, 255];
+	}else{
+		m_picker.addPickList(m_actor);
+		m_background1 = [100, 100, 100];
+	}
+}
 
 
 </script>
