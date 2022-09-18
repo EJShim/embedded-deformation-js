@@ -1,6 +1,10 @@
 <script>
 import { onMount } from "svelte";
 import vtkGenericRenderWindow from '@kitware/vtk.js/Rendering/Misc/GenericRenderWindow';
+import vtkInteractorStyleManipulator from '@kitware/vtk.js/Interaction/Style/InteractorStyleManipulator';
+import vtkMouseCameraTrackballRotateManipulator from '@kitware/vtk.js/Interaction/Manipulators/MouseCameraTrackballRotateManipulator';
+
+
 import vtkPointPicker from '@kitware/vtk.js/Rendering/Core/PointPicker';
 import { readOBJ, makeActor } from './utils';
 import vtkPolyData from "@kitware/vtk.js/Common/DataModel/PolyData";
@@ -53,43 +57,40 @@ onMount(async ()=>{
 	m_controlPointActor = vtkActor.newInstance();
 	m_controlPointActor.setMapper(mapper);
 	m_controlPointActor.getProperty().setColor(1, 0, 0);	
-	renderer.addActor(m_controlPointActor);	
+	renderer.addActor(m_controlPointActor);			
 	
 	
-	renderer.resetCamera();	
 
 
-	// const numPts = 3;
-	// let random_points = Float32Array.from({length: 3*numPts}, () => Math.random());	
-	// const append_val = [Math.random(), 	Math.random(), Math.random()];
-	// console.log(append_val);
-	// random_points = new Float32Array([...random_points,...append_val]);
 
-	// console.log(random_points);
-	
-	// m_controlPointPolyData.getPoints().setData(random_points, 3);
-	update();
+	// const interactorStyle  = vtkInteractorStyleManipulator.newInstance();
+	const interactorStyle = m_iren.getInteractor().getInteractorStyle();	
+
 	
 	renderer.resetCamera();		
 	renWin.render();		
-
-
+	update();
+	
 	// TODO :  resassign interaction?
-	m_iren.getInteractor().onLeftButtonPress((e)=>{		
-		// m_iren.getInteractor().disable();
-		// m_iren.getInteractor().enable();
+	m_iren.getInteractor().onLeftButtonPress((e)=>{				
 		
 		m_picker.pick([e.position.x, e.position.y, e.position.z], renderer);	
 		const pointId = m_picker.getPointId();
+		if(m_picker.getActors().length === 0) return;			
+		
+		//disable interaction
+		interactorStyle.endPan();
+		interactorStyle.endRotate();
+
+		
 
 		if(m_bSimulation){
-			// Move Control Points
-			// console.log(m_controlPointPolyData.getVerts())
+			// Move Control Points			
 			console.log(pointId, m_picker.getActors());
 
 
 		}else{ // Add New Control Points				
-			if(m_picker.getActors().length === 0) return;	
+			
 			const pickedPoint = m_polydata.getPoints().getPoint(pointId);
 			console.log(pointId, pickedPoint);
 			
@@ -99,26 +100,31 @@ onMount(async ()=>{
 			
 			m_controlPointPolyData.getPoints().setData(points_buffer, 3);			
 			// m_controlPointPolyData.getPoints().modified();
-
 			m_controlPointPolyData.modified();
 		}
-		
-
-		
 		renWin.render();
-
-		
-
 	});
+
+	m_iren.getInteractor().onMouseMove(e=>{
+		if(m_picker.getActors().length === 0) return;				
+		// interactorStyle.removeMouseManipulator(interactorStyleManipulator);		
+		
+	});
+
+	m_iren.getInteractor().onLeftButtonRelease(e=>{		
+		// interactorStyle.addMouseManipulator(interactorStyleManipulator);	
+		
+	})
 
 	m_iren.getInteractor().onKeyDown(e=>{
 
-		if(e.key !== " ") return;
-		m_bSimulation = !m_bSimulation;
-
-
+		if(e.key === " "){
+			 m_bSimulation = !m_bSimulation;
+		}
 		update();
-	});
+	});	
+
+	
 });
 
 const update = () =>{
