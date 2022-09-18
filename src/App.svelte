@@ -1,10 +1,8 @@
 <script>
 import { onMount } from "svelte";
 import vtkGenericRenderWindow from '@kitware/vtk.js/Rendering/Misc/GenericRenderWindow';
-import vtkInteractorStyleManipulator from '@kitware/vtk.js/Interaction/Style/InteractorStyleManipulator';
-import vtkMouseCameraTrackballRotateManipulator from '@kitware/vtk.js/Interaction/Manipulators/MouseCameraTrackballRotateManipulator';
-
-
+// import vtkInteractorStyleManipulator from '@kitware/vtk.js/Interaction/Style/InteractorStyleManipulator';
+// import vtkMouseCameraTrackballRotateManipulator from '@kitware/vtk.js/Interaction/Manipulators/MouseCameraTrackballRotateManipulator';
 import vtkPointPicker from '@kitware/vtk.js/Rendering/Core/PointPicker';
 import { readOBJ, makeActor } from './utils';
 import vtkPolyData from "@kitware/vtk.js/Common/DataModel/PolyData";
@@ -35,7 +33,6 @@ onMount(async ()=>{
 	m_iren.setContainer(m_rendererContainer);
 	m_iren.getRenderWindow().render();
 	m_iren.resize();
-
 
 	const renderer = m_iren.getRenderer();
 	const renWin = m_iren.getRenderWindow();
@@ -148,6 +145,14 @@ const update = () =>{
 <main bind:this={m_rendererContainer}
 	style="--theme-background1: rgb({m_background1[0]}, {m_background1[1]}, {m_background1[2]} );
 			--theme-background2 : rgb({m_background2[0]}, {m_background2[1]}, {m_background2[2]});">	
+		
+	<div class="message"> 
+		<div>Press 'space' to change mode</div>	
+		<div>{m_bSimulation ? 
+			"drag control point ":
+			"add control point"}</div>	
+	</div>
+	
 </main>
 
 <style>
@@ -164,6 +169,24 @@ main{
 	display: flex;
 	justify-content: center;
 	align-items: center;
+}
+
+.message{
+	position : absolute;
+	top : 10px;
+	left : 40px;	
+	
+	display: flex;	
+	flex-direction: column;	
+	justify-content: center;	
+}
+
+.message > div{
+	background-color: black;
+	padding : 5px;
+	user-select: none;
+	display: flex;
+	text-align: center;
 }
 
 </style>
