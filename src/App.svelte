@@ -8,6 +8,7 @@ import { readOBJ, makeActor } from './utils';
 import vtkPolyData from "@kitware/vtk.js/Common/DataModel/PolyData";
 import vtkSphereMapper from '@kitware/vtk.js/Rendering/Core/SphereMapper';
 import vtkActor from "@kitware/vtk.js/Rendering/Core/Actor";
+    import vtkDataArray from "@kitware/vtk.js/Common/Core/DataArray";
 
 
 let m_rendererContainer;
@@ -45,7 +46,8 @@ onMount(async ()=>{
 
 	console.log(m_polydata.getVerts().getNumberOfTuples());
 	// Add Contorl Points rendering objetc	
-	m_controlPointPolyData = vtkPolyData.newInstance();		
+	m_controlPointPolyData = vtkPolyData.newInstance();
+	m_controlPointPolyData.getPointData().addArray( vtkDataArray.newInstance({values:new Int32Array(), name:"Reference"}) );
 	
 
 	const mapper = vtkSphereMapper.newInstance();
@@ -85,13 +87,13 @@ onMount(async ()=>{
 		}else{ // Add New Control Points				
 			
 			const pickedPoint = m_polydata.getPoints().getPoint(pointId);
-			console.log(pointId, pickedPoint);
 			
 			// this way.. makes picker work
 			let points_buffer = m_controlPointPolyData.getPoints().getData();
 			points_buffer = new Float32Array([...points_buffer, ...pickedPoint]);
 			
-			m_controlPointPolyData.getPoints().setData(points_buffer, 3);			
+			m_controlPointPolyData.getPoints().setData(points_buffer, 3);
+			m_controlPointPolyData.getPointData().getArray("Reference").insertNextTuple([pointId]);
 			// m_controlPointPolyData.getPoints().modified();
 			m_controlPointPolyData.modified();
 		}
@@ -99,14 +101,27 @@ onMount(async ()=>{
 	});
 
 	m_iren.getInteractor().onMouseMove(e=>{
-		if(m_picker.getActors().length === 0) return;				
-		// interactorStyle.removeMouseManipulator(interactorStyleManipulator);		
+		if(!m_bSimulation) return;
+		if(m_picker.getActors().length === 0) return;
+
+		// TODO : Move Control Point
+
+		// TODO : Get Required informations in Float32Array
+
+		// TODO : Run ARAP
+		console.log("move control point & Run ARAP  Here");
 		
 	});
 
-	m_iren.getInteractor().onLeftButtonRelease(e=>{		
-		// interactorStyle.addMouseManipulator(interactorStyleManipulator);	
-		
+	m_iren.getInteractor().onLeftButtonRelease(e=>{	
+		if(!m_bSimulation) return;
+		if(m_picker.getActors().length === 0) return;
+
+		m_picker = vtkPointPicker.newInstance();	
+		m_picker.setPickFromList(true);
+		m_picker.initializePickList();
+		m_picker.addPickList(m_controlPointActor);
+
 	})
 
 	m_iren.getInteractor().onKeyDown(e=>{
