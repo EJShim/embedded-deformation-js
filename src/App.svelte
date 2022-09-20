@@ -56,10 +56,6 @@ onMount(async ()=>{
 	m_controlPointActor.getProperty().setColor(1, 0, 0);	
 	renderer.addActor(m_controlPointActor);			
 	
-	
-
-
-
 	// const interactorStyle  = vtkInteractorStyleManipulator.newInstance();
 	const interactorStyle = m_iren.getInteractor().getInteractorStyle();	
 
@@ -124,7 +120,7 @@ onMount(async ()=>{
 	
 });
 
-const update = () =>{
+const update = () => {
 	
 	m_picker = vtkPointPicker.newInstance();	
 	m_picker.setPickFromList(true);
@@ -137,6 +133,9 @@ const update = () =>{
 		m_picker.addPickList(m_actor);
 		m_background1 = [100, 100, 100];
 	}
+
+	// Redraw
+	m_iren.resize();
 }
 
 
