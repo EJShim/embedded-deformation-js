@@ -107,11 +107,13 @@ onMount(async ()=>{
 		const display = [e.position.x, e.position.y, e.position.z];
 
 		const viewCalc = m_iren.getInteractor().getView(); 
-		const normDisp = viewCalc.displayToNormalizedDisplay(viewCalc);
+		const normDisp = viewCalc.displayToNormalizedDisplay(...display);
+		const dims = viewCalc.getViewportSize(renderer);
+		const world = renderer.normalizedDisplayToWorld(normDisp[0], normDisp[1], 0.5, dims[0] / dims[1]); // 0.5 should be saved position
 
-		const view = displayToView(...display, renderer, viewCalc);
-		
-		const world = renderer.viewToWorld(view[0], view[1], -2.0);
+
+		// const view = displayToView(...display, renderer, viewCalc);		
+		// const world = renderer.viewToWorld(view[0], view[1], -2.0);
 		// const world = renderer.display(...display);
 
 		
