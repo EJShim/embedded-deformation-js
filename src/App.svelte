@@ -4,11 +4,11 @@ import vtkGenericRenderWindow from '@kitware/vtk.js/Rendering/Misc/GenericRender
 // import vtkInteractorStyleManipulator from '@kitware/vtk.js/Interaction/Style/InteractorStyleManipulator';
 // import vtkMouseCameraTrackballRotateManipulator from '@kitware/vtk.js/Interaction/Manipulators/MouseCameraTrackballRotateManipulator';
 import vtkPointPicker from '@kitware/vtk.js/Rendering/Core/PointPicker';
-import { readOBJ, makeActor } from './utils';
+import { readOBJ, makeActor, displayToView } from './utils';
 import vtkPolyData from "@kitware/vtk.js/Common/DataModel/PolyData";
 import vtkSphereMapper from '@kitware/vtk.js/Rendering/Core/SphereMapper';
 import vtkActor from "@kitware/vtk.js/Rendering/Core/Actor";
-    import vtkDataArray from "@kitware/vtk.js/Common/Core/DataArray";
+import vtkDataArray from "@kitware/vtk.js/Common/Core/DataArray";
 
 
 let m_rendererContainer;
@@ -44,7 +44,6 @@ onMount(async ()=>{
 	m_actor.getProperty().setColor(1, 1, 0);	
 	renderer.addActor(m_actor);
 
-	console.log(m_polydata.getVerts().getNumberOfTuples());
 	// Add Contorl Points rendering objetc	
 	m_controlPointPolyData = vtkPolyData.newInstance();
 	m_controlPointPolyData.getPointData().addArray( vtkDataArray.newInstance({values:new Int32Array(), name:"Reference"}) );
@@ -72,19 +71,16 @@ onMount(async ()=>{
 		m_picker.pick([e.position.x, e.position.y, e.position.z], renderer);	
 		const pointId = m_picker.getPointId();
 		if(m_picker.getActors().length === 0) return;			
-		
-		//disable interaction
-		interactorStyle.endPan();
-		interactorStyle.endRotate();
 
-		
+		// disable rotation		
+		interactorStyle.endRotate();
+		interactorStyle.endPan();
 
 		if(m_bSimulation){
-			// Move Control Points			
-			console.log(pointId, m_picker.getActors());
-
+			
 
 		}else{ // Add New Control Points				
+
 			
 			const pickedPoint = m_polydata.getPoints().getPoint(pointId);
 			
@@ -92,6 +88,7 @@ onMount(async ()=>{
 			let points_buffer = m_controlPointPolyData.getPoints().getData();
 			points_buffer = new Float32Array([...points_buffer, ...pickedPoint]);
 			
+			// Add Point Id of the target mesh
 			m_controlPointPolyData.getPoints().setData(points_buffer, 3);
 			m_controlPointPolyData.getPointData().getArray("Reference").insertNextTuple([pointId]);
 			// m_controlPointPolyData.getPoints().modified();
@@ -104,12 +101,29 @@ onMount(async ()=>{
 		if(!m_bSimulation) return;
 		if(m_picker.getActors().length === 0) return;
 
+		const renderer = m_iren.getRenderer();
+		const pointId = m_picker.getPointId();
 		// TODO : Move Control Point
+		const display = [e.position.x, e.position.y, e.position.z];
+
+		const viewCalc = m_iren.getInteractor().getView(); 
+		const normDisp = viewCalc.displayToNormalizedDisplay(viewCalc);
+
+		const view = displayToView(...display, renderer, viewCalc);
+		
+		const world = renderer.viewToWorld(view[0], view[1], -2.0);
+		// const world = renderer.display(...display);
+
+		
+		m_controlPointPolyData.getPoints().setTuple(pointId, world);
+		m_controlPointPolyData.getPoints().setData( m_controlPointPolyData.getPoints().getData(), 3 );
+		m_controlPointPolyData.modified();
+		renWin.render();
 
 		// TODO : Get Required informations in Float32Array
 
 		// TODO : Run ARAP
-		console.log("move control point & Run ARAP  Here");
+		// console.log("move control point & Run ARAP  Here", pointId);
 		
 	});
 
@@ -135,6 +149,7 @@ onMount(async ()=>{
 	
 });
 
+
 const update = () => {
 	
 	m_picker = vtkPointPicker.newInstance();	
@@ -142,8 +157,13 @@ const update = () => {
 	m_picker.initializePickList();	
 	
 	if(m_bSimulation){			
+
+		//TODO : Initialize Calculation
+
 		m_picker.addPickList(m_controlPointActor);
 		m_background1 = [100, 100, 255];
+
+
 	}else{
 		m_picker.addPickList(m_actor);
 		m_background1 = [100, 100, 100];

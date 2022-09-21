@@ -42,3 +42,10 @@ export const makeActor = (polydata) =>{
 
     return actor;
 }
+
+export const displayToView = (x, y, z, renderer, viewAPI) => {
+    var val = viewAPI.displayToNormalizedDisplay(x, y, z);
+    var val2 = renderer.normalizedDisplayToProjection(val[0], val[1], val[2]);
+    var dims = viewAPI.getViewportSize(renderer);
+    return renderer.projectionToView(val2[0], val2[1], val2[2], dims[0] / dims[1])
+}
