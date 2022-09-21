@@ -29,6 +29,8 @@ let m_picker;
 
 let m_bSimulation = false;
 
+let m_pickDistance = 0.5;
+
 onMount(async ()=>{	
 	m_background1 = [100, 100, 100];
 	m_iren.setContainer(m_rendererContainer);
@@ -83,6 +85,10 @@ onMount(async ()=>{
 
 			
 			const pickedPoint = m_polydata.getPoints().getPoint(pointId);
+
+			// Save pick distance
+			const normDisp = renderer.worldToNormalizedDisplay(...pickedPoint);
+			m_pickDistance = normDisp[2];
 			
 			// this way.. makes picker work
 			let points_buffer = m_controlPointPolyData.getPoints().getData();
@@ -103,20 +109,15 @@ onMount(async ()=>{
 
 		const renderer = m_iren.getRenderer();
 		const pointId = m_picker.getPointId();
-		// TODO : Move Control Point
+		
+		// calculate control point position
 		const display = [e.position.x, e.position.y, e.position.z];
-
 		const viewCalc = m_iren.getInteractor().getView(); 
 		const normDisp = viewCalc.displayToNormalizedDisplay(...display);
 		const dims = viewCalc.getViewportSize(renderer);
-		const world = renderer.normalizedDisplayToWorld(normDisp[0], normDisp[1], 0.5, dims[0] / dims[1]); // 0.5 should be saved position
+		const world = renderer.normalizedDisplayToWorld(normDisp[0], normDisp[1], m_pickDistance, dims[0] / dims[1]); // 0.5 should be saved position
 
-
-		// const view = displayToView(...display, renderer, viewCalc);		
-		// const world = renderer.viewToWorld(view[0], view[1], -2.0);
-		// const world = renderer.display(...display);
-
-		
+		// Update position
 		m_controlPointPolyData.getPoints().setTuple(pointId, world);
 		m_controlPointPolyData.getPoints().setData( m_controlPointPolyData.getPoints().getData(), 3 );
 		m_controlPointPolyData.modified();
