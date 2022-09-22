@@ -1,0 +1,16 @@
+version: '3.0'
+services:
+  cmake:
+    image: clo/elmo
+    volumes:
+      - ../../../:/work
+    working_dir: /work/build
+    command: cmake /work/src/cpp
+          -G Ninja
+
+  make:
+    image: clo/elmo
+    volumes:
+      - ../../../:/work
+    working_dir: /work/build
+    command: ninja

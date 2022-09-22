@@ -124,6 +124,8 @@ onMount(async ()=>{
 		renWin.render();
 
 		// TODO : Get Required informations in Float32Array
+		const CU = m_controlPointPolyData.getPoints().getData();
+		const V = m_polydata.getPoints().getData();
 
 		// TODO : Run ARAP
 		// console.log("move control point & Run ARAP  Here", pointId);
@@ -162,7 +164,13 @@ const update = () => {
 	if(m_bSimulation){			
 
 		//TODO : Initialize Calculation
+		console.log("Initialize Simulator here");
+		const V = m_polydata.getPoints().getData();
+		const F = m_polydata.getPolys().getData();
+		const b = m_controlPointPolyData.getPointData().getArray("Reference").getData();
 
+
+		
 		m_picker.addPickList(m_controlPointActor);
 		m_background1 = [100, 100, 255];
 

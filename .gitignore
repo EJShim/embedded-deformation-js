@@ -25,3 +25,5 @@ docs-ssr
 *.sln
 *.sw?
 .vscode
+build/
+src/wasm/
