@@ -125,18 +125,19 @@ onMount(async ()=>{
 		m_controlPointPolyData.getPoints().setTuple(pointId, world);
 		m_controlPointPolyData.getPoints().setData( m_controlPointPolyData.getPoints().getData(), 3 );
 		m_controlPointPolyData.modified();
-		renWin.render();
 
 		// TODO : Get Required informations in Float32Array
 		const CU = m_controlPointPolyData.getPoints().getData();
 		const V = m_polydata.getPoints().getData();
 
 		// TODO : Run ARAP
-		let res = m_simulator.SingleIteration(CU, V);
-
-		m_polydata.getPoints().setData(res);
+		let U = m_simulator.SingleIteration(CU, V);
+		m_polydata.getPoints().setData(U);
 		m_polydata.modified();
-		// console.log("move control point & Run ARAP  Here", pointId);
+
+		renderer.resetCameraClippingRange();
+		renWin.render();
+
 		
 	});
 

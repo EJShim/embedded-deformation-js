@@ -88,19 +88,18 @@ public:
 		Eigen::VectorXf Beq;
 		Eigen::MatrixXf B = m_arap_K*R;
 
-        Eigen::Matrix<float, -1, -1, Eigen::RowMajor> U = V;		
-		igl::min_quad_with_fixed_solve(m_arap_data, B, CU, Beq, U);	
+        // Solve
+        U = V;		
+		igl::min_quad_with_fixed_solve(m_arap_data, B, CU, Beq, U);
 
-        std::vector<float> result(U.data(), U.data() + U.rows() * U.cols());
-        // std::cout << U.rows() <<"," << U.cols() << std::endl;
-        // std::cout << result.size() << std::endl;
-        // std::cout << U << std::endl;
-        return emscripten::val(emscripten::typed_memory_view(result.size(), result.data()));
+        // Return in float32Array
+        return emscripten::val(emscripten::typed_memory_view(U.size(), U.data()));
     }
 
 private:
     igl::min_quad_with_fixed_data<float> m_arap_data;
-	Eigen::SparseMatrix<float> m_arap_K;	
+	Eigen::SparseMatrix<float> m_arap_K;
+    Eigen::Matrix<float, -1, -1, Eigen::RowMajor> U;	
 };
 
 
