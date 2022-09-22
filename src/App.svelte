@@ -10,7 +10,6 @@ import vtkSphereMapper from '@kitware/vtk.js/Rendering/Core/SphereMapper';
 import vtkActor from "@kitware/vtk.js/Rendering/Core/Actor";
 import vtkDataArray from "@kitware/vtk.js/Common/Core/DataArray";
 import {utils} from './cpp';
-
 let m_rendererContainer;
 let m_iren = vtkGenericRenderWindow.newInstance({background:[1,0,0,0]});
 
@@ -31,7 +30,10 @@ let m_bSimulation = false;
 
 let m_pickDistance = 0.5;
 
+let m_wasmModule;
+
 onMount(async ()=>{	
+
 	m_background1 = [100, 100, 100];
 	m_iren.setContainer(m_rendererContainer);
 	m_iren.getRenderWindow().render();
@@ -101,6 +103,7 @@ onMount(async ()=>{
 			m_controlPointPolyData.modified();
 		}
 		renWin.render();
+	
 	});
 
 	m_iren.getInteractor().onMouseMove(e=>{
@@ -152,6 +155,7 @@ onMount(async ()=>{
 	});	
 
 	
+	m_wasmModule = await utils();
 });
 
 
@@ -169,6 +173,7 @@ const update = () => {
 		const F = m_polydata.getPolys().getData();
 		const b = m_controlPointPolyData.getPointData().getArray("Reference").getData();
 
+		m_wasmModule.TestEigen(V, F, b);
 
 		
 		m_picker.addPickList(m_controlPointActor);

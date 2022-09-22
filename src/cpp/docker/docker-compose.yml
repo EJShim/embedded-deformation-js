@@ -7,6 +7,8 @@ services:
     working_dir: /work/build
     command: cmake /work/src/cpp
           -G Ninja
+          -DIGL_INCLUDE_PATH=/libigl/include
+          -DEIGEN_INCLUDE_PATH=/eigen
 
   make:
     image: clo/elmo

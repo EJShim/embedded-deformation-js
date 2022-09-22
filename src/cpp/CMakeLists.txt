@@ -21,6 +21,9 @@ foreach(MODULE_FILE ${TARGET_FILES})
 
     target_compile_options(${LIBRARY_NAME} PUBLIC ${emscripten_options})
     target_link_options(${LIBRARY_NAME} PUBLIC ${emscripten_options})
+    target_include_directories(${LIBRARY_NAME} PUBLIC
+                                ${IGL_INCLUDE_PATH}
+                                ${EIGEN_INCLUDE_PATH})
     # target_link_libraries(${LIBRARY_NAME} embind})
 endforeach()
     
