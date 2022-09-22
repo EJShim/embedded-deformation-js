@@ -9,7 +9,7 @@ import vtkPolyData from "@kitware/vtk.js/Common/DataModel/PolyData";
 import vtkSphereMapper from '@kitware/vtk.js/Rendering/Core/SphereMapper';
 import vtkActor from "@kitware/vtk.js/Rendering/Core/Actor";
 import vtkDataArray from "@kitware/vtk.js/Common/Core/DataArray";
-
+import {utils} from './cpp';
 
 let m_rendererContainer;
 let m_iren = vtkGenericRenderWindow.newInstance({background:[1,0,0,0]});

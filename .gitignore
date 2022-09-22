@@ -26,4 +26,4 @@ docs-ssr
 *.sw?
 .vscode
 build/
-src/wasm/
+src/cpp/wasm/

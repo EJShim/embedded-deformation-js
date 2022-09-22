@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(edl)
 
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/../wasm)
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/wasm)
 
 #Sources
 file(GLOB TARGET_FILES ${PROJECT_SOURCE_DIR}/*.cpp)
@@ -16,6 +16,7 @@ foreach(MODULE_FILE ${TARGET_FILES})
         "SHELL:-s MODULARIZE=1"
         "SHELL:-s WASM=1"
         "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall"
+        "SHELL:--bind"
     )
 
     target_compile_options(${LIBRARY_NAME} PUBLIC ${emscripten_options})
