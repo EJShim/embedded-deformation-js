@@ -26,10 +26,15 @@ let m_controlPointActor;
 
 let m_picker;
 
-let m_bSimulation = false;
+// animation
+let m_fpsInterval = 1000 / 60;
+let m_then;
+let m_animationId;
 
+let m_bSimulation = false;
 let m_pickDistance = 0.5;
 
+// cpp module
 let m_wasmModule;
 let m_simulator;
 
@@ -126,19 +131,7 @@ onMount(async ()=>{
 		m_controlPointPolyData.getPoints().setData( m_controlPointPolyData.getPoints().getData(), 3 );
 		m_controlPointPolyData.modified();
 
-		// TODO : Get Required informations in Float32Array
-		const CU = m_controlPointPolyData.getPoints().getData();
-		const V = m_polydata.getPoints().getData();
-
-		// TODO : Run ARAP
-		let U = m_simulator.SingleIteration(CU, V);
-		m_polydata.getPoints().setData(U);
-		m_polydata.modified();
-
-		renderer.resetCameraClippingRange();
-		renWin.render();
-
-		
+		renderer.resetCameraClippingRange();		
 	});
 
 	m_iren.getInteractor().onLeftButtonRelease(e=>{	
@@ -174,7 +167,7 @@ const update = () => {
 	m_picker.initializePickList();	
 	
 	if(m_bSimulation){			
-
+		startSimulation();
 		//TODO : Initialize Calculation
 		console.log("Initialize Simulator here");
 		const V = m_polydata.getPoints().getData();
@@ -189,12 +182,57 @@ const update = () => {
 
 
 	}else{
+		cancelAnimationFrame(m_animationId);
+
 		m_picker.addPickList(m_actor);
 		m_background1 = [100, 100, 100];
 	}
 
 	// Redraw
 	m_iren.resize();
+}
+
+const solve = () => {
+	// TODO : Get Required informations in Float32Array
+	const CU = m_controlPointPolyData.getPoints().getData();
+	const V = m_polydata.getPoints().getData();
+
+	// TODO : Run ARAP
+	let U = m_simulator.SingleIteration(CU, V);
+	m_polydata.getPoints().setData(U);
+	m_polydata.modified();
+}
+
+const startSimulation = () =>  {
+	m_then = Date.now();
+	m_animationId = requestAnimationFrame(animate);
+}
+
+const animate = () => {
+
+	// request another frame
+	m_animationId = requestAnimationFrame(animate);
+
+
+	// calc elapsed time since last loop
+
+	let now = Date.now();
+	let elapsed = now - m_then;
+
+	// if enough time has elapsed, draw the next frame
+
+	if (elapsed > m_fpsInterval) {
+
+		// Get ready for next frame by setting then=now, but also adjust for your
+		// specified fpsInterval not being a multiple of RAF's interval (16.7ms)
+		m_then = now - (elapsed % m_fpsInterval);
+
+		// Put your drawing code here
+
+		solve();
+		m_iren.getRenderWindow().render();
+
+	}
 }
 
 
