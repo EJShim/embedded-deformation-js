@@ -15,15 +15,15 @@ foreach(MODULE_FILE ${TARGET_FILES})
         "SHELL:-s EXPORT_ES6=1"
         "SHELL:-s MODULARIZE=1"
         "SHELL:-s WASM=1"
-        "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall"
-        "SHELL:--bind"
-    )
-
+        "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall"     
+        "SHELL:--bind"   
+    )    
     target_compile_options(${LIBRARY_NAME} PUBLIC ${emscripten_options})
     target_link_options(${LIBRARY_NAME} PUBLIC ${emscripten_options})
+
     target_include_directories(${LIBRARY_NAME} PUBLIC
                                 ${IGL_INCLUDE_PATH}
                                 ${EIGEN_INCLUDE_PATH})
-    # target_link_libraries(${LIBRARY_NAME} embind})
+
 endforeach()
     

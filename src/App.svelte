@@ -31,6 +31,7 @@ let m_bSimulation = false;
 let m_pickDistance = 0.5;
 
 let m_wasmModule;
+let m_simulator;
 
 onMount(async ()=>{	
 
@@ -131,6 +132,10 @@ onMount(async ()=>{
 		const V = m_polydata.getPoints().getData();
 
 		// TODO : Run ARAP
+		let res = m_simulator.SingleIteration(CU, V);
+
+		m_polydata.getPoints().setData(res);
+		m_polydata.modified();
 		// console.log("move control point & Run ARAP  Here", pointId);
 		
 	});
@@ -156,6 +161,8 @@ onMount(async ()=>{
 
 	
 	m_wasmModule = await utils();
+	m_simulator = new m_wasmModule.Simulator();
+	
 });
 
 
@@ -173,8 +180,8 @@ const update = () => {
 		const F = m_polydata.getPolys().getData();
 		const b = m_controlPointPolyData.getPointData().getArray("Reference").getData();
 
-		m_wasmModule.TestEigen(V, F, b);
-
+		//Intiialize Module
+		m_simulator.Initialize(V, F, b);
 		
 		m_picker.addPickList(m_controlPointActor);
 		m_background1 = [100, 100, 255];
