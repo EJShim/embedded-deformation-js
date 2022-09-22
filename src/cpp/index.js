@@ -1,20 +1,12 @@
-import {default as utilsModule} from './wasm/utils'
-import utilsWasm from './wasm/utils.wasm?url';
-
-
+import {default as simulatorModule} from './wasm/simulator'
 
 // utilsWasm;
-let utils = async ()=>{
-    const param = {
-        locateFile: (path, prefix)=>{return utilsWasm;}
-    }
-    
+let arapSimulator = async ()=>{
     return new Promise((resolve, reject)=>{
-        utilsModule( param ).then(instance =>{
+        simulatorModule().then(instance =>{
             resolve(instance);
         });
     });
 };
 
-
-export {utils};
+export {arapSimulator};

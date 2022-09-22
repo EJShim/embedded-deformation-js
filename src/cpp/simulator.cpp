@@ -8,12 +8,8 @@
 #include <igl/polar_svd3x3.h>
 class Simulator{
 public:
-    Simulator(){
-        std::cout << "Simulator Initialized " << std::endl;
-    }
-    ~Simulator(){
-
-    }
+    Simulator(){}
+    ~Simulator(){}
 
     void Initialize(emscripten::val V_js, emscripten::val F_js, emscripten::val b_js){
         std::vector<float> V_arr = emscripten::convertJSArrayToNumberVector<float>(V_js);
@@ -34,7 +30,7 @@ public:
 
 		Eigen::MatrixXf CE;
 		igl::cotmatrix_entries(V, F, CE);
-     
+
         // Build K
 		m_arap_K.resize(V.rows(),3*V.rows());
 		
@@ -63,8 +59,6 @@ public:
         }
         
         m_arap_K.setFromTriplets(tripletList.begin(), tripletList.end());
-
-        std::cout << "Initialize Done" << std::endl;
     }
 
     emscripten::val SingleIteration(emscripten::val CU_js, emscripten::val V_js){
@@ -101,8 +95,6 @@ private:
 	Eigen::SparseMatrix<float> m_arap_K;
     Eigen::Matrix<float, -1, -1, Eigen::RowMajor> U;	
 };
-
-
 
 EMSCRIPTEN_BINDINGS(my_module) {
     emscripten::class_<Simulator>("Simulator")

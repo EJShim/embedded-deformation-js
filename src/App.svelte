@@ -9,7 +9,7 @@ import vtkPolyData from "@kitware/vtk.js/Common/DataModel/PolyData";
 import vtkSphereMapper from '@kitware/vtk.js/Rendering/Core/SphereMapper';
 import vtkActor from "@kitware/vtk.js/Rendering/Core/Actor";
 import vtkDataArray from "@kitware/vtk.js/Common/Core/DataArray";
-import {utils} from './cpp';
+import {arapSimulator} from './cpp';
 let m_rendererContainer;
 let m_iren = vtkGenericRenderWindow.newInstance({background:[1,0,0,0]});
 
@@ -35,21 +35,34 @@ let m_bSimulation = false;
 let m_pickDistance = 0.5;
 
 // cpp module
-let m_wasmModule;
 let m_simulator;
 
-onMount(async ()=>{	
-
-	m_background1 = [100, 100, 100];
+onMount(async ()=>{
 	m_iren.setContainer(m_rendererContainer);
 	m_iren.getRenderWindow().render();
 	m_iren.resize();
 
-	const renderer = m_iren.getRenderer();
-	const renWin = m_iren.getRenderWindow();
+	// Add Initial Rendering Object
+	await addData('resources/decimated-knight.obj');		
+	
+	//Initialize WASM arap module
+	let module = await arapSimulator();
+	m_simulator = new module.Simulator();
+
+	
+	// Assign Interaction
+	m_iren.getInteractor().onLeftButtonPress((e)=>{onLeftButtonPress(e);});
+	m_iren.getInteractor().onMouseMove(e=>{onMouseMove(e);});
+	m_iren.getInteractor().onLeftButtonRelease(e=>{	onLeftButtonRelease(e);});
+	m_iren.getInteractor().onKeyDown(e=>{onKeyDown(e);});	
+});
+
+const addData = async(path) =>{
+	let renWin = m_iren.getRenderWindow();
+	let renderer = m_iren.getRenderer();
 
 	// Add Rendering Object
-	m_polydata = await readOBJ('resources/decimated-knight.obj');
+	m_polydata = await readOBJ(path);
 	m_actor = makeActor(m_polydata);
 	m_actor.getProperty().setColor(1, 1, 0);	
 	renderer.addActor(m_actor);
@@ -57,63 +70,57 @@ onMount(async ()=>{
 	// Add Contorl Points rendering objetc	
 	m_controlPointPolyData = vtkPolyData.newInstance();
 	m_controlPointPolyData.getPointData().addArray( vtkDataArray.newInstance({values:new Int32Array(), name:"Reference"}) );
-	
-
 	const mapper = vtkSphereMapper.newInstance();
 	mapper.setInputData(m_controlPointPolyData);	
 	mapper.setRadius(0.01);
 	m_controlPointActor = vtkActor.newInstance();
 	m_controlPointActor.setMapper(mapper);
 	m_controlPointActor.getProperty().setColor(1, 0, 0);	
-	renderer.addActor(m_controlPointActor);			
-	
-	// const interactorStyle  = vtkInteractorStyleManipulator.newInstance();
-	const interactorStyle = m_iren.getInteractor().getInteractorStyle();	
-
+	renderer.addActor(m_controlPointActor);				
 	
 	renderer.resetCamera();		
-	renWin.render();		
+	renWin.render();	
+
+	// Update pick list
 	update();
 	
-	// TODO :  resassign interaction?
-	m_iren.getInteractor().onLeftButtonPress((e)=>{				
+}
+
+const onLeftButtonPress = (e) =>{
+	const renWin = m_iren.getRenderWindow();
+	const renderer = m_iren.getRenderer();
+	const interactorStyle = m_iren.getInteractor().getInteractorStyle();
+
+	m_picker.pick([e.position.x, e.position.y, e.position.z], renderer);	
+	const pointId = m_picker.getPointId();
+	if(m_picker.getActors().length === 0) return;			
+
+	// disable rotation		
+	interactorStyle.endRotate();
+	interactorStyle.endPan();
+
+	if(!m_bSimulation){				
+		const pickedPoint = m_polydata.getPoints().getPoint(pointId);
+
+		// Save pick distance
+		const normDisp = renderer.worldToNormalizedDisplay(...pickedPoint);
+		m_pickDistance = normDisp[2];
 		
-		m_picker.pick([e.position.x, e.position.y, e.position.z], renderer);	
-		const pointId = m_picker.getPointId();
-		if(m_picker.getActors().length === 0) return;			
+		// this way.. makes picker work
+		let points_buffer = m_controlPointPolyData.getPoints().getData();
+		points_buffer = new Float32Array([...points_buffer, ...pickedPoint]);
+		
+		// Add Point Id of the target mesh
+		m_controlPointPolyData.getPoints().setData(points_buffer, 3);
+		m_controlPointPolyData.getPointData().getArray("Reference").insertNextTuple([pointId]);
+		// m_controlPointPolyData.getPoints().modified();
+		m_controlPointPolyData.modified();
+	}
+	renWin.render();
+}
 
-		// disable rotation		
-		interactorStyle.endRotate();
-		interactorStyle.endPan();
-
-		if(m_bSimulation){
-			
-
-		}else{ // Add New Control Points				
-
-			
-			const pickedPoint = m_polydata.getPoints().getPoint(pointId);
-
-			// Save pick distance
-			const normDisp = renderer.worldToNormalizedDisplay(...pickedPoint);
-			m_pickDistance = normDisp[2];
-			
-			// this way.. makes picker work
-			let points_buffer = m_controlPointPolyData.getPoints().getData();
-			points_buffer = new Float32Array([...points_buffer, ...pickedPoint]);
-			
-			// Add Point Id of the target mesh
-			m_controlPointPolyData.getPoints().setData(points_buffer, 3);
-			m_controlPointPolyData.getPointData().getArray("Reference").insertNextTuple([pointId]);
-			// m_controlPointPolyData.getPoints().modified();
-			m_controlPointPolyData.modified();
-		}
-		renWin.render();
-	
-	});
-
-	m_iren.getInteractor().onMouseMove(e=>{
-		if(!m_bSimulation) return;
+const onMouseMove = (e) =>{
+	if(!m_bSimulation) return;
 		if(m_picker.getActors().length === 0) return;
 
 		const renderer = m_iren.getRenderer();
@@ -132,33 +139,25 @@ onMount(async ()=>{
 		m_controlPointPolyData.modified();
 
 		renderer.resetCameraClippingRange();		
-	});
+}
 
-	m_iren.getInteractor().onLeftButtonRelease(e=>{	
-		if(!m_bSimulation) return;
+const onLeftButtonRelease = (e) =>{
+	if(!m_bSimulation) return;
 		if(m_picker.getActors().length === 0) return;
 
 		m_picker = vtkPointPicker.newInstance();	
 		m_picker.setPickFromList(true);
 		m_picker.initializePickList();
 		m_picker.addPickList(m_controlPointActor);
+}
 
-	})
 
-	m_iren.getInteractor().onKeyDown(e=>{
-
-		if(e.key === " "){
-			 m_bSimulation = !m_bSimulation;
-		}
-		update();
-	});	
-
-	
-	m_wasmModule = await utils();
-	m_simulator = new m_wasmModule.Simulator();
-	
-});
-
+const onKeyDown = (e)=>{
+	if(e.key === " "){
+		m_bSimulation = !m_bSimulation;
+	}
+	update();
+}
 
 const update = () => {
 	
@@ -167,9 +166,7 @@ const update = () => {
 	m_picker.initializePickList();	
 	
 	if(m_bSimulation){			
-		startSimulation();
-		//TODO : Initialize Calculation
-		console.log("Initialize Simulator here");
+		//Initialize Calculation
 		const V = m_polydata.getPoints().getData();
 		const F = m_polydata.getPolys().getData();
 		const b = m_controlPointPolyData.getPointData().getArray("Reference").getData();
@@ -177,6 +174,11 @@ const update = () => {
 		//Intiialize Module
 		m_simulator.Initialize(V, F, b);
 		
+		// Start Animation
+		m_then = Date.now();
+		m_animationId = requestAnimationFrame(animate);
+
+
 		m_picker.addPickList(m_controlPointActor);
 		m_background1 = [100, 100, 255];
 
@@ -203,19 +205,12 @@ const solve = () => {
 	m_polydata.modified();
 }
 
-const startSimulation = () =>  {
-	m_then = Date.now();
-	m_animationId = requestAnimationFrame(animate);
-}
-
 const animate = () => {
 
 	// request another frame
 	m_animationId = requestAnimationFrame(animate);
 
-
 	// calc elapsed time since last loop
-
 	let now = Date.now();
 	let elapsed = now - m_then;
 
@@ -228,7 +223,6 @@ const animate = () => {
 		m_then = now - (elapsed % m_fpsInterval);
 
 		// Put your drawing code here
-
 		solve();
 		m_iren.getRenderWindow().render();
 
