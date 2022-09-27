@@ -15,7 +15,8 @@ foreach(MODULE_FILE ${TARGET_FILES})
         "SHELL:-s EXPORT_ES6=1"
         "SHELL:-s MODULARIZE=1"
         "SHELL:-s WASM=1"
-        "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall"     
+        "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall"
+        "SHELL:-s ALLOW_MEMORY_GROWTH" 
         "SHELL:--bind"   
     )    
     target_compile_options(${LIBRARY_NAME} PUBLIC ${emscripten_options})

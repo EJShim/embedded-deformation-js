@@ -1,4 +1,5 @@
 import vtkOBJReader from '@kitware/vtk.js/IO/Misc/OBJReader';
+import vtkPLYReader from '@kitware/vtk.js/IO/Geometry/PLYReader';
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 import vtkMapper from '@kitware/vtk.js/Rendering/Core/Mapper';
 import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
@@ -19,6 +20,22 @@ export const readOBJ = async (input) =>{
     return reader.getOutputData();
 }
 
+export const readPLY = async(input)=>{
+	const reader = vtkPLYReader.newInstance();
+
+	const input_type = typeof(input)
+	if(input_type == 'string'){
+		await reader.setUrl(input);
+	}else{
+		const string = await parseFileArrayBuffer(input);
+		reader.parseAsArrayBuffer(string);		
+	}
+	
+    reader.update();
+
+    return reader.getOutputData();
+}
+
 export const parseFileString = (file) =>{
 	return new Promise((resolve, reject)=>{
 		const reader = new FileReader();
@@ -26,10 +43,20 @@ export const parseFileString = (file) =>{
 		reader.onload = e=>{
 			resolve(reader.result);
 		}
-
 		reader.readAsText(file)
+	});
+}
 
-	})
+export const parseFileArrayBuffer = (file) =>{
+	return new Promise((resolve, reject)=>{
+		const reader = new FileReader();
+		
+		reader.onload = e=>{
+			resolve(reader.result);
+		}
+
+		reader.readAsArrayBuffer(file)
+	});
 }
 
 export const makeActor = (polydata) =>{

@@ -4,12 +4,13 @@ import vtkGenericRenderWindow from '@kitware/vtk.js/Rendering/Misc/GenericRender
 // import vtkInteractorStyleManipulator from '@kitware/vtk.js/Interaction/Style/InteractorStyleManipulator';
 // import vtkMouseCameraTrackballRotateManipulator from '@kitware/vtk.js/Interaction/Manipulators/MouseCameraTrackballRotateManipulator';
 import vtkPointPicker from '@kitware/vtk.js/Rendering/Core/PointPicker';
-import { readOBJ, makeActor, displayToView } from './utils';
+import { readOBJ, makeActor, readPLY } from './utils';
 import vtkPolyData from "@kitware/vtk.js/Common/DataModel/PolyData";
 import vtkSphereMapper from '@kitware/vtk.js/Rendering/Core/SphereMapper';
 import vtkActor from "@kitware/vtk.js/Rendering/Core/Actor";
 import vtkDataArray from "@kitware/vtk.js/Common/Core/DataArray";
 import {arapSimulator} from './cpp';
+    import Renderer from "@kitware/vtk.js/Rendering/OpenGL/Renderer";
 let m_rendererContainer;
 let m_iren = vtkGenericRenderWindow.newInstance({background:[1,0,0,0]});
 
@@ -36,6 +37,9 @@ let m_pickDistance = 0.5;
 
 // cpp module
 let m_simulator;
+
+// file drop
+let m_bFileDrop = false;
 
 onMount(async ()=>{
 	m_iren.setContainer(m_rendererContainer);
@@ -72,7 +76,6 @@ const addData = async(path) =>{
 	m_controlPointPolyData.getPointData().addArray( vtkDataArray.newInstance({values:new Int32Array(), name:"Reference"}) );
 	const mapper = vtkSphereMapper.newInstance();
 	mapper.setInputData(m_controlPointPolyData);	
-	mapper.setRadius(0.01);
 	m_controlPointActor = vtkActor.newInstance();
 	m_controlPointActor.setMapper(mapper);
 	m_controlPointActor.getProperty().setColor(1, 0, 0);	
@@ -99,9 +102,8 @@ const onLeftButtonPress = (e) =>{
 	interactorStyle.endRotate();
 	interactorStyle.endPan();
 
-	if(!m_bSimulation){				
+	if(!m_bSimulation){		
 		const pickedPoint = m_polydata.getPoints().getPoint(pointId);
-
 		// Save pick distance
 		const normDisp = renderer.worldToNormalizedDisplay(...pickedPoint);
 		m_pickDistance = normDisp[2];
@@ -163,8 +165,15 @@ const update = () => {
 	
 	m_picker = vtkPointPicker.newInstance();	
 	m_picker.setPickFromList(true);
-	m_picker.initializePickList();	
-	
+	m_picker.initializePickList();
+
+	const bounds = m_actor.getBounds();
+	const xLen = bounds[1] - bounds[0];
+	const yLen = bounds[2] - bounds[3];
+	const zLen = bounds[4] - bounds[5];
+	const length = Math.sqrt(xLen*xLen + yLen*yLen + zLen*zLen);
+	m_controlPointActor.getMapper().setRadius(length / 50);
+
 	if(m_bSimulation){			
 		//Initialize Calculation
 		const V = m_polydata.getPoints().getData();
@@ -185,7 +194,6 @@ const update = () => {
 
 	}else{
 		cancelAnimationFrame(m_animationId);
-
 		m_picker.addPickList(m_actor);
 		m_background1 = [100, 100, 100];
 	}
@@ -229,11 +237,59 @@ const animate = () => {
 	}
 }
 
+const FileEnter = (e) =>{
+	e.preventDefault();
+	m_bFileDrop = true;
+}
 
+const FileDrop = async (e) =>{
+
+	e.preventDefault();
+
+
+	const file = e.dataTransfer.files[0] 
+	if(!file) return;
+
+	const renderer = m_iren.getRenderer();
+	const renWin = m_iren.getRenderWindow();
+
+	// Update Target Rendering Data?
+	const ext = file.name.split('.').pop()
+	
+	if(ext === 'ply'){
+		m_polydata = await readPLY(file);
+	}else if(ext === 'obj'){
+		m_polydata = await readOBJ(file);
+	}
+
+	m_polydata.getPointData().removeArray("Normals");
+	m_actor.getMapper().setInputData(m_polydata);
+
+	// Update Control Points - empty
+	
+	m_controlPointPolyData.getPoints().setData(new Float32Array(), 3);
+	m_controlPointPolyData.getPointData().getArray("Reference").setData(new Int16Array());
+
+	m_bSimulation = false;
+	update();
+
+	m_bFileDrop = false;
+	renderer.resetCamera();
+	renWin.render();
+}
+
+const FileLeave = (e) =>{
+
+	e.preventDefault();
+
+	m_bFileDrop = false;
+}
 </script>
 
 <main bind:this={m_rendererContainer}
-	style="--theme-background1: rgb({m_background1[0]}, {m_background1[1]}, {m_background1[2]} );
+		on:dragover={e=>{FileEnter(e)}}
+		on:drop={e=>{FileDrop(e)}}
+		style="--theme-background1: rgb({m_background1[0]}, {m_background1[1]}, {m_background1[2]} );
 			--theme-background2 : rgb({m_background2[0]}, {m_background2[1]}, {m_background2[2]});">	
 		
 	<div class="message"> 
@@ -242,6 +298,12 @@ const animate = () => {
 			"drag control point ":
 			"add control point"}</div>	
 	</div>
+
+	{#if m_bFileDrop}
+	<div class="drop-handler" on:dragleave={e=>{FileLeave(e)}}>
+		<h1>Drop draped mesh .obj file</h1>
+	</div>		
+	{/if}
 	
 </main>
 
@@ -279,4 +341,15 @@ main{
 	text-align: center;
 }
 
+
+.drop-handler {
+		position : absolute;
+		width : 100%;
+		height : 100%;
+		background : rgba(52, 12, 250, 0.5);
+
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
 </style>
