@@ -61,8 +61,14 @@ onMount(async ()=>{
 	m_iren.getRenderWindow().render();
 	m_iren.resize();
 
+	m_iren.getRenderer().getActiveCamera().setPosition(0, 0, -1);
+	m_iren.getRenderer().getActiveCamera().setViewUp(0, -1, 0);
+	
 	// Add Initial Rendering Object
-	await addData('resources/decimated-knight.obj');		
+	await addData('resources/knight_transformed.obj');
+
+	
+	// console.log(m_iren.getRenderer().getActiveCamera().getPosition())
 	
 	//Initialize WASM arap module
 	let module = await arapSimulator();
@@ -70,9 +76,6 @@ onMount(async ()=>{
 
 	
 	// // Assign Interaction
-	// m_iren.getInteractor().onLeftButtonPress((e)=>{onLeftButtonPress(e);});
-	// m_iren.getInteractor().onMouseMove(e=>{onMouseMove(e);});
-	// m_iren.getInteractor().onLeftButtonRelease(e=>{	onLeftButtonRelease(e);});
 	m_iren.getInteractor().onKeyDown(e=>{onKeyDown(e);});	
 
 	// Set Default Canvas dat
@@ -137,7 +140,6 @@ const onKeyDown = (e)=>{
 	if(e.key === " "){
 		m_bSimulation = !m_bSimulation;		
 		update();
-		m_iren.getRenderer().resetCamera();
 	}
 }
 
@@ -301,10 +303,10 @@ const FileLeave = (e) =>{
 			--theme-background2 : rgb({m_background2[0]}, {m_background2[1]}, {m_background2[2]});">	
 		
 	<div class="message"> 
-		<div>Press 'space' to change mode</div>	
+		<div>Press 'space' to </div>	
 		<div>{m_bSimulation ? 
-			"drag control point ":
-			"add control point"}</div>	
+			"STOP":
+			"ANIMATE"}</div>	
 	</div>
 
 	{#if m_bFileDrop}
