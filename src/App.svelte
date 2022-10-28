@@ -1,3 +1,8 @@
+
+<svelte:head>
+	<script src="lib/ort.min.js" on:load={e=>{InitializeAI()}}></script>
+</svelte:head>
+
 <script>
 import { onMount } from "svelte";
 import vtkGenericRenderWindow from '@kitware/vtk.js/Rendering/Misc/GenericRenderWindow';
@@ -10,8 +15,17 @@ import vtkSphereMapper from '@kitware/vtk.js/Rendering/Core/SphereMapper';
 import vtkActor from "@kitware/vtk.js/Rendering/Core/Actor";
 import vtkDataArray from "@kitware/vtk.js/Common/Core/DataArray";
 import {arapSimulator} from './cpp';
-    import Renderer from "@kitware/vtk.js/Rendering/OpenGL/Renderer";
+    import { aw } from "@kitware/vtk.js/Common/Core/Math/index";
+    
 let m_rendererContainer;
+let m_videoContainer;
+let m_canvas = document.createElement("canvas");
+
+/// AI Session
+let m_session;
+let m_calculation = false;
+
+
 let m_iren = vtkGenericRenderWindow.newInstance({background:[1,0,0,0]});
 
 let m_background1 = [100, 100, 100];
@@ -41,6 +55,7 @@ let m_simulator;
 // file drop
 let m_bFileDrop = false;
 
+
 onMount(async ()=>{
 	m_iren.setContainer(m_rendererContainer);
 	m_iren.getRenderWindow().render();
@@ -54,11 +69,15 @@ onMount(async ()=>{
 	m_simulator = new module.Simulator();
 
 	
-	// Assign Interaction
-	m_iren.getInteractor().onLeftButtonPress((e)=>{onLeftButtonPress(e);});
-	m_iren.getInteractor().onMouseMove(e=>{onMouseMove(e);});
-	m_iren.getInteractor().onLeftButtonRelease(e=>{	onLeftButtonRelease(e);});
+	// // Assign Interaction
+	// m_iren.getInteractor().onLeftButtonPress((e)=>{onLeftButtonPress(e);});
+	// m_iren.getInteractor().onMouseMove(e=>{onMouseMove(e);});
+	// m_iren.getInteractor().onLeftButtonRelease(e=>{	onLeftButtonRelease(e);});
 	m_iren.getInteractor().onKeyDown(e=>{onKeyDown(e);});	
+
+	// Set Default Canvas dat
+	m_canvas.width = 256;
+	m_canvas.height = 256;
 });
 
 const addData = async(path) =>{
@@ -71,9 +90,22 @@ const addData = async(path) =>{
 	m_actor.getProperty().setColor(1, 1, 0);	
 	renderer.addActor(m_actor);
 
-	// Add Contorl Points rendering objetc	
+	// Add Contorl Points rendering objetc
+
+	let default_idx = new Int32Array([
+		262,165,242,452,58,67,65,318,100,395,8,232,420,174,288,415,12,294,324,61,26
+	]);
+
+	let buffer = [];
+	default_idx.forEach(idx=>{
+		const point = m_polydata.getPoints().getPoint(idx);
+		buffer.push(...point);
+	});
+	let default_points = new Float32Array(buffer);
+
 	m_controlPointPolyData = vtkPolyData.newInstance();
-	m_controlPointPolyData.getPointData().addArray( vtkDataArray.newInstance({values:new Int32Array(), name:"Reference"}) );
+	m_controlPointPolyData.getPoints().setData(default_points, 3);
+	m_controlPointPolyData.getPointData().addArray( vtkDataArray.newInstance({values:default_idx, name:"Reference"}) );
 	const mapper = vtkSphereMapper.newInstance();
 	mapper.setInputData(m_controlPointPolyData);	
 	m_controlPointActor = vtkActor.newInstance();
@@ -89,76 +121,24 @@ const addData = async(path) =>{
 	
 }
 
-const onLeftButtonPress = (e) =>{
-	const renWin = m_iren.getRenderWindow();
-	const renderer = m_iren.getRenderer();
-	const interactorStyle = m_iren.getInteractor().getInteractorStyle();
 
-	m_picker.pick([e.position.x, e.position.y, e.position.z], renderer);	
-	const pointId = m_picker.getPointId();
-	if(m_picker.getActors().length === 0) return;			
+const InitializeAI = async ()=>{
+	const sessionOption = { 
+		executionProviders: ['wasm'] ,
+		graphOptimizationLevel: "disabled"        
+	};
 
-	// disable rotation		
-	interactorStyle.endRotate();
-	interactorStyle.endPan();
+	m_session = await ort.InferenceSession.create('resources/estimator.onnx', sessionOption);
 
-	if(!m_bSimulation){		
-		const pickedPoint = m_polydata.getPoints().getPoint(pointId);
-		// Save pick distance
-		const normDisp = renderer.worldToNormalizedDisplay(...pickedPoint);
-		m_pickDistance = normDisp[2];
-		
-		// this way.. makes picker work
-		let points_buffer = m_controlPointPolyData.getPoints().getData();
-		points_buffer = new Float32Array([...points_buffer, ...pickedPoint]);
-		
-		// Add Point Id of the target mesh
-		m_controlPointPolyData.getPoints().setData(points_buffer, 3);
-		m_controlPointPolyData.getPointData().getArray("Reference").insertNextTuple([pointId]);
-		// m_controlPointPolyData.getPoints().modified();
-		m_controlPointPolyData.modified();
-	}
-	renWin.render();
-}
-
-const onMouseMove = (e) =>{
-	if(!m_bSimulation) return;
-		if(m_picker.getActors().length === 0) return;
-
-		const renderer = m_iren.getRenderer();
-		const pointId = m_picker.getPointId();
-		
-		// calculate control point position
-		const display = [e.position.x, e.position.y, e.position.z];
-		const viewCalc = m_iren.getInteractor().getView(); 
-		const normDisp = viewCalc.displayToNormalizedDisplay(...display);
-		const dims = viewCalc.getViewportSize(renderer);
-		const world = renderer.normalizedDisplayToWorld(normDisp[0], normDisp[1], m_pickDistance, dims[0] / dims[1]); // 0.5 should be saved position
-
-		// Update position
-		m_controlPointPolyData.getPoints().setTuple(pointId, world);
-		m_controlPointPolyData.getPoints().setData( m_controlPointPolyData.getPoints().getData(), 3 );
-		m_controlPointPolyData.modified();
-
-		renderer.resetCameraClippingRange();		
-}
-
-const onLeftButtonRelease = (e) =>{
-	if(!m_bSimulation) return;
-		if(m_picker.getActors().length === 0) return;
-
-		m_picker = vtkPointPicker.newInstance();	
-		m_picker.setPickFromList(true);
-		m_picker.initializePickList();
-		m_picker.addPickList(m_controlPointActor);
 }
 
 
 const onKeyDown = (e)=>{
 	if(e.key === " "){
-		m_bSimulation = !m_bSimulation;
+		m_bSimulation = !m_bSimulation;		
+		update();
+		m_iren.getRenderer().resetCamera();
 	}
-	update();
 }
 
 const update = () => {
@@ -230,11 +210,35 @@ const animate = () => {
 		// specified fpsInterval not being a multiple of RAF's interval (16.7ms)
 		m_then = now - (elapsed % m_fpsInterval);
 
+		// Run DL Model here
+		inference();
+
 		// Put your drawing code here
 		solve();
 		m_iren.getRenderWindow().render();
 
 	}
+}
+
+const inference = async () =>{
+	// let canvas = document.createElement("canvas");
+	if(m_calculation) return;
+
+	m_calculation = true;
+	let ctx = m_canvas.getContext("2d");
+	ctx.drawImage(m_videoContainer, 0, 0, m_canvas.width, m_canvas.height);        
+	
+	let imageData =  Float32Array.from(ctx.getImageData(0, 0, 256, 256).data);
+
+	let inputTensor = new ort.Tensor('float32', imageData, [256, 256, 4]);
+	let outputTensor = await m_session.run({"pre_processor/input" : inputTensor});
+	let outputData = outputTensor["post_processor/output"].data;
+
+
+	m_controlPointPolyData.getPoints().setData(outputData, 3);
+	m_controlPointPolyData.modified();
+
+	m_calculation = false;
 }
 
 const FileEnter = (e) =>{
@@ -285,8 +289,12 @@ const FileLeave = (e) =>{
 	m_bFileDrop = false;
 }
 </script>
+<video class="video" autoplay muted loop bind:this={m_videoContainer}>
+	<source src="resources/output.mp4" type="video/mp4">
+	<track kind="captions">
+</video>
 
-<main bind:this={m_rendererContainer}
+<div class="renderer" bind:this={m_rendererContainer}
 		on:dragover={e=>{FileEnter(e)}}
 		on:drop={e=>{FileDrop(e)}}
 		style="--theme-background1: rgb({m_background1[0]}, {m_background1[1]}, {m_background1[2]} );
@@ -303,19 +311,26 @@ const FileLeave = (e) =>{
 	<div class="drop-handler" on:dragleave={e=>{FileLeave(e)}}>
 		<h1>Drop draped mesh .obj file</h1>
 	</div>		
-	{/if}
-	
-</main>
+	{/if}	
+</div>
 
 <style>
 
-main{
-	background: linear-gradient(var(--theme-background1), var(--theme-background2));
+.video{
 	position : absolute;
 	top : 0;
 	left : 0;
+	width : 50%;
+	height : 100%;
+}
 
-	width : 100%;
+.renderer{
+	background: linear-gradient(var(--theme-background1), var(--theme-background2));
+	position : absolute;
+	top : 0;
+	left : 50%;
+
+	width : 50%;
 	height : 100%;
 
 	display: flex;
