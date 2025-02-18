@@ -26,3 +26,4 @@ docs-ssr
 .vscode
 build/
 src/cpp/wasm/
+docs
